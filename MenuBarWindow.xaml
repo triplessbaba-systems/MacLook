@@ -1,0 +1,47 @@
+<Window x:Class="MacLook.MenuBarWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="MacLook Menu Bar"
+        WindowStyle="None" ResizeMode="NoResize" ShowInTaskbar="False" Topmost="True" ShowActivated="False"
+        Background="#FF1E1E1E"
+        FontFamily="{StaticResource UiFont}" FontSize="13">
+    <Window.Resources>
+        <!-- Replaced at runtime depending on how light the wallpaper is -->
+        <SolidColorBrush x:Key="BarText" Color="White" />
+        <SolidColorBrush x:Key="BarHover" Color="#33FFFFFF" />
+        <Style x:Key="Glyph" TargetType="Path">
+            <Setter Property="Stroke" Value="{DynamicResource BarText}" />
+            <Setter Property="StrokeThickness" Value="1.5" />
+            <Setter Property="StrokeStartLineCap" Value="Round" />
+            <Setter Property="StrokeEndLineCap" Value="Round" />
+            <Setter Property="StrokeLineJoin" Value="Round" />
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <!-- Frosted glass: blurred wallpaper + tint -->
+        <Border x:Name="BgBlur" />
+        <Border x:Name="BgTint" />
+
+        <DockPanel Margin="10,0,8,0">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Style="{StaticResource BarButton}" Click="Search_Click" ToolTip="Ara">
+                    <Path Style="{StaticResource Glyph}" StrokeThickness="1.6"
+                          Data="M 1.2,5.8 A 4.6,4.6 0 1 1 10.4,5.8 A 4.6,4.6 0 1 1 1.2,5.8 M 9.1,9.1 L 13,13" />
+                </Button>
+
+                <Button Style="{StaticResource BarButton}" Click="ControlCenter_Click" ToolTip="Denetim Merkezi">
+                    <Grid Width="16" Height="14">
+                        <Path Style="{StaticResource Glyph}" StrokeThickness="1.3"
+                              Data="M 3.5,1 H 12.5 A 2.5,2.5 0 0 1 12.5,6 H 3.5 A 2.5,2.5 0 0 1 3.5,1 Z M 3.5,8 H 12.5 A 2.5,2.5 0 0 1 12.5,13 H 3.5 A 2.5,2.5 0 0 1 3.5,8 Z" />
+                        <Path Fill="{DynamicResource BarText}"
+                              Data="M 11,3.5 A 1.5,1.5 0 1 1 14,3.5 A 1.5,1.5 0 1 1 11,3.5 Z M 2,10.5 A 1.5,1.5 0 1 1 5,10.5 A 1.5,1.5 0 1 1 2,10.5 Z" />
+                    </Grid>
+                </Button>
+
+            </StackPanel>
+
+            <Menu x:Name="AppMenu" VerticalAlignment="Center" />
+        </DockPanel>
+    </Grid>
+</Window>

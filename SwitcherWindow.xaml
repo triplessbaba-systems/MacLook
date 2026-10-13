@@ -1,0 +1,24 @@
+<Window x:Class="MacLook.SwitcherWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="MacLook App Switcher"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize" ShowInTaskbar="False" Topmost="True" ShowActivated="False"
+        FontFamily="{StaticResource UiFont}">
+    <!-- Outer margin leaves room for the shadow -->
+    <Grid Margin="40">
+        <Border x:Name="Panel" CornerRadius="22">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="40" ShadowDepth="10" Direction="270" Opacity="0.35" />
+            </Border.Effect>
+        </Border>
+        <Border CornerRadius="22" BorderThickness="1"
+                Background="{DynamicResource SwitcherTint}" BorderBrush="{DynamicResource SwitcherBorder}" />
+        <StackPanel Margin="12,12,12,8">
+            <StackPanel x:Name="Icons" Orientation="Horizontal" />
+            <Canvas Height="24">
+                <TextBlock x:Name="AppName" FontSize="13" Foreground="{DynamicResource SwitcherText}" />
+            </Canvas>
+        </StackPanel>
+    </Grid>
+</Window>

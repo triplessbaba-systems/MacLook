@@ -1,0 +1,56 @@
+<local:PanelWindow x:Class="MacLook.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:MacLook"
+        Title="MacLook Ayarları"
+        FontFamily="{StaticResource UiFont}" FontSize="13" Foreground="{DynamicResource PanelText}">
+    <local:PanelWindow.Resources>
+        <Style x:Key="Section" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="6,14,0,6" />
+            <Setter Property="Foreground" Value="{DynamicResource PanelSubText}" />
+        </Style>
+    </local:PanelWindow.Resources>
+
+    <Grid Margin="30">
+        <Grid.RenderTransform>
+            <TranslateTransform x:Name="SlideTransform" />
+        </Grid.RenderTransform>
+        <Border x:Name="BackdropBorder" CornerRadius="16">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="40" ShadowDepth="10" Direction="270" Opacity="0.35" />
+            </Border.Effect>
+        </Border>
+        <Border CornerRadius="16" BorderThickness="1" Background="{DynamicResource PanelTint}" BorderBrush="{DynamicResource PanelBorder}" />
+
+        <StackPanel x:Name="Body" Margin="20,16,20,18">
+            <DockPanel>
+                <Button x:Name="DoneButton" DockPanel.Dock="Right" Style="{StaticResource PillButton}" Padding="12,4">
+                    <TextBlock Text="Bitti" FontWeight="SemiBold" Foreground="{DynamicResource Accent}" />
+                </Button>
+                <StackPanel Orientation="Horizontal">
+                    <Path x:Name="Logo" Width="16" Height="19" Stretch="Uniform" Fill="{DynamicResource PanelText}" VerticalAlignment="Center" />
+                    <TextBlock Text="MacLook Ayarları" FontSize="17" FontWeight="SemiBold" Margin="10,0,0,1" VerticalAlignment="Center" />
+                </StackPanel>
+            </DockPanel>
+
+            <TextBlock Text="KLAVYE" Style="{StaticResource Section}" />
+            <Border Style="{StaticResource Tile}" Padding="14,4">
+                <StackPanel x:Name="KeyboardRows" />
+            </Border>
+
+            <TextBlock Text="GENEL" Style="{StaticResource Section}" />
+            <Border Style="{StaticResource Tile}" Padding="14,4">
+                <StackPanel x:Name="GeneralRows" />
+            </Border>
+
+            <TextBlock Text="WINDOWS AYARLARI" Style="{StaticResource Section}" />
+            <Border Style="{StaticResource Tile}" Padding="6">
+                <StackPanel x:Name="LinkRows" />
+            </Border>
+
+            <TextBlock x:Name="Footer" FontSize="11.5" Margin="6,14,0,0" TextWrapping="Wrap" Foreground="{DynamicResource PanelSubText}" />
+        </StackPanel>
+    </Grid>
+</local:PanelWindow>
