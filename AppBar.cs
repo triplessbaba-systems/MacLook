@@ -16,46 +16,54 @@ internal sealed class AppBar
 
     readonly Window window;
     readonly uint edge;
-    readonly double heightDip;
+    readonly ScreenInfo screen;
+    double heightDip;
     IntPtr hwnd;
     uint callbackMessage;
+    bool registered;
 
     /// <summary>True when a fullscreen app (game, video) takes over the screen.</summary>
     public event Action<bool>? FullscreenChanged;
 
-    public AppBar(Window window, uint edge, double heightDip)
+    public AppBar(Window window, uint edge, double heightDip, ScreenInfo screen)
     {
         this.window = window;
         this.edge = edge;
         this.heightDip = heightDip;
+        this.screen = screen;
     }
 
-    public void Register()
+    /// <param name="reserve">false: only listen for fullscreen apps, don't keep windows out of the strip (auto-hide).</param>
+    public void Register(bool reserve = true)
     {
         hwnd = new WindowInteropHelper(window).Handle;
         callbackMessage = Native.RegisterWindowMessage("MacLook.AppBarMessage");
         var data = NewData();
         data.uCallbackMessage = callbackMessage;
         Native.SHAppBarMessage(ABM_NEW, ref data);
+        registered = true;
         HwndSource.FromHwnd(hwnd).AddHook(WndProc);
+        if (!reserve) heightDip = 0;
         UpdatePosition();
-        window.Closed += (_, _) =>
-        {
-            var remove = NewData();
-            Native.SHAppBarMessage(ABM_REMOVE, ref remove);
-        };
+        window.Closed += (_, _) => Unregister();
+    }
+
+    public void Unregister()
+    {
+        if (!registered) return;
+        registered = false;
+        var remove = NewData();
+        Native.SHAppBarMessage(ABM_REMOVE, ref remove);
     }
 
     void UpdatePosition()
     {
-        var scale = PresentationSource.FromVisual(window)?.CompositionTarget?.TransformToDevice.M11 ?? 1.0;
-        int screenW = Native.GetSystemMetrics(0), screenH = Native.GetSystemMetrics(1);
-        int size = (int)Math.Ceiling(heightDip * scale);
-
+        var px = screen.BoundsPx;
+        int size = (int)Math.Ceiling(heightDip * Screens.Scale);
         var data = NewData();
         data.rc = edge == Top
-            ? new RECT { Left = 0, Top = 0, Right = screenW, Bottom = size }
-            : new RECT { Left = 0, Top = screenH - size, Right = screenW, Bottom = screenH };
+            ? new RECT { Left = px.Left, Top = px.Top, Right = px.Right, Bottom = px.Top + size }
+            : new RECT { Left = px.Left, Top = px.Bottom - size, Right = px.Right, Bottom = px.Bottom };
         Native.SHAppBarMessage(ABM_QUERYPOS, ref data);
         if (edge == Top) data.rc.Bottom = data.rc.Top + size;
         else data.rc.Top = data.rc.Bottom - size;
@@ -64,7 +72,7 @@ internal sealed class AppBar
 
     IntPtr WndProc(IntPtr h, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if (msg != (int)callbackMessage) return IntPtr.Zero;
+        if (msg != (int)callbackMessage || !registered) return IntPtr.Zero;
         switch (wParam.ToInt32())
         {
             case ABN_POSCHANGED:
@@ -72,11 +80,13 @@ internal sealed class AppBar
                 break;
             case ABN_FULLSCREENAPP:
                 bool fullscreen = lParam != IntPtr.Zero;
-                // Ignore the desktop (sometimes reported as fullscreen) and our own Launchpad.
+                // Ignore the desktop (sometimes reported as fullscreen) and our own full-screen windows.
                 var fg = Native.GetForegroundWindow();
                 var fgClass = WindowTracker.GetClass(fg);
                 Native.GetWindowThreadProcessId(fg, out var fgPid);
                 bool ignore = fgClass is "Progman" or "WorkerW" || fgPid == (uint)Environment.ProcessId;
+                // Only react to fullscreen apps on this window's own monitor.
+                if (fullscreen && Screens.MonitorOf(fg) != screen.Handle) ignore = true;
                 if (!fullscreen || !ignore)
                     FullscreenChanged?.Invoke(fullscreen);
                 break;

@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:MacLook"
-        Title="MacLook Ayarları"
+        Title="{local:T 'MacLook Ayarları'}"
         FontFamily="{StaticResource UiFont}" FontSize="13" Foreground="{DynamicResource PanelText}">
     <local:PanelWindow.Resources>
         <Style x:Key="Section" TargetType="TextBlock">
@@ -11,6 +11,7 @@
             <Setter Property="Margin" Value="6,14,0,6" />
             <Setter Property="Foreground" Value="{DynamicResource PanelSubText}" />
         </Style>
+        <Style TargetType="ScrollBar" BasedOn="{StaticResource ThinScrollBar}" />
     </local:PanelWindow.Resources>
 
     <Grid Margin="30">
@@ -24,33 +25,48 @@
         </Border>
         <Border CornerRadius="16" BorderThickness="1" Background="{DynamicResource PanelTint}" BorderBrush="{DynamicResource PanelBorder}" />
 
-        <StackPanel x:Name="Body" Margin="20,16,20,18">
-            <DockPanel>
+        <DockPanel x:Name="Body" Margin="20,16,8,18">
+            <DockPanel DockPanel.Dock="Top" Margin="0,0,12,0">
                 <Button x:Name="DoneButton" DockPanel.Dock="Right" Style="{StaticResource PillButton}" Padding="12,4">
-                    <TextBlock Text="Bitti" FontWeight="SemiBold" Foreground="{DynamicResource Accent}" />
+                    <TextBlock Text="{local:T 'Bitti'}" FontWeight="SemiBold" Foreground="{DynamicResource Accent}" />
                 </Button>
                 <StackPanel Orientation="Horizontal">
                     <Path x:Name="Logo" Width="16" Height="19" Stretch="Uniform" Fill="{DynamicResource PanelText}" VerticalAlignment="Center" />
-                    <TextBlock Text="MacLook Ayarları" FontSize="17" FontWeight="SemiBold" Margin="10,0,0,1" VerticalAlignment="Center" />
+                    <TextBlock Text="{local:T 'MacLook Ayarları'}" FontSize="17" FontWeight="SemiBold" Margin="10,0,0,1" VerticalAlignment="Center" />
                 </StackPanel>
             </DockPanel>
 
-            <TextBlock Text="KLAVYE" Style="{StaticResource Section}" />
+            <!-- Sections scroll when the window is taller than the screen allows -->
+            <ScrollViewer x:Name="Scroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+            <StackPanel Margin="0,0,12,0">
+            <TextBlock Text="{local:T 'ALT BAR'}" Style="{StaticResource Section}" />
+            <Border Style="{StaticResource Tile}" Padding="14,4">
+                <StackPanel x:Name="BarRows" />
+            </Border>
+
+            <TextBlock Text="{local:T 'KLAVYE'}" Style="{StaticResource Section}" />
             <Border Style="{StaticResource Tile}" Padding="14,4">
                 <StackPanel x:Name="KeyboardRows" />
             </Border>
 
-            <TextBlock Text="GENEL" Style="{StaticResource Section}" />
+            <TextBlock Text="{local:T 'SICAK KÖŞELER'}" Style="{StaticResource Section}" />
+            <Border Style="{StaticResource Tile}" Padding="14,4">
+                <StackPanel x:Name="CornerRows" />
+            </Border>
+
+            <TextBlock Text="{local:T 'GENEL'}" Style="{StaticResource Section}" />
             <Border Style="{StaticResource Tile}" Padding="14,4">
                 <StackPanel x:Name="GeneralRows" />
             </Border>
 
-            <TextBlock Text="WINDOWS AYARLARI" Style="{StaticResource Section}" />
+            <TextBlock Text="{local:T 'WINDOWS AYARLARI'}" Style="{StaticResource Section}" />
             <Border Style="{StaticResource Tile}" Padding="6">
                 <StackPanel x:Name="LinkRows" />
             </Border>
 
             <TextBlock x:Name="Footer" FontSize="11.5" Margin="6,14,0,0" TextWrapping="Wrap" Foreground="{DynamicResource PanelSubText}" />
-        </StackPanel>
+            </StackPanel>
+            </ScrollViewer>
+        </DockPanel>
     </Grid>
 </local:PanelWindow>

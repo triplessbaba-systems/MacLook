@@ -60,7 +60,7 @@ public class PanelWindow : Window
         Width = panel.Width + 2 * ShadowMargin;
         Height = panel.Height + 2 * ShadowMargin;
 
-        double scale = BitmapUtil.DpiScale(App.Dock);
+        double scale = Screens.Scale;
         var px = new Int32Rect((int)(panel.X * scale), (int)(panel.Y * scale), (int)(panel.Width * scale), (int)(panel.Height * scale));
         backdrop.Background = new ImageBrush(BitmapUtil.BlurredScreen(px, 14)) { Stretch = Stretch.Fill };
 

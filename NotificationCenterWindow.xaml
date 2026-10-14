@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:MacLook"
-        Title="MacLook Bildirim Merkezi"
+        Title="{local:T 'MacLook Bildirim Merkezi'}"
         FontFamily="{StaticResource UiFont}" FontSize="13" Foreground="{DynamicResource PanelText}">
     <local:PanelWindow.Resources>
         <Style TargetType="ScrollBar" BasedOn="{StaticResource ThinScrollBar}" />
@@ -33,13 +33,13 @@
                 <StackPanel>
                     <DockPanel>
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                            <Button x:Name="PrevMonth" Style="{StaticResource PillButton}" Padding="8,2" ToolTip="Önceki ay">
+                            <Button x:Name="PrevMonth" Style="{StaticResource PillButton}" Padding="8,2" ToolTip="{local:T 'Önceki ay'}">
                                 <TextBlock Text="&#xE76B;" FontFamily="{StaticResource IconFont}" FontSize="11" />
                             </Button>
-                            <Button x:Name="TodayButton" Style="{StaticResource PillButton}" Padding="8,2" ToolTip="Bugün">
+                            <Button x:Name="TodayButton" Style="{StaticResource PillButton}" Padding="8,2" ToolTip="{local:T 'Bugün'}">
                                 <Ellipse Width="6" Height="6" Fill="{DynamicResource PanelSubText}" />
                             </Button>
-                            <Button x:Name="NextMonth" Style="{StaticResource PillButton}" Padding="8,2" ToolTip="Sonraki ay">
+                            <Button x:Name="NextMonth" Style="{StaticResource PillButton}" Padding="8,2" ToolTip="{local:T 'Sonraki ay'}">
                                 <TextBlock Text="&#xE76C;" FontFamily="{StaticResource IconFont}" FontSize="11" />
                             </Button>
                         </StackPanel>
@@ -53,15 +53,15 @@
             <!-- Notifications -->
             <DockPanel Margin="4,14,0,6">
                 <Button x:Name="ClearAll" DockPanel.Dock="Right" Style="{StaticResource PillButton}" Padding="8,3">
-                    <TextBlock Text="Tümünü Temizle" FontSize="12" />
+                    <TextBlock Text="{local:T 'Tümünü Temizle'}" FontSize="12" />
                 </Button>
-                <TextBlock Text="Bildirimler" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <TextBlock Text="{local:T 'Bildirimler'}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
             </DockPanel>
             <ScrollViewer x:Name="NotificationScroll" Margin="0,0,-8,0" Focusable="False"
                           VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel x:Name="NotificationList" Margin="0,0,8,0" />
             </ScrollViewer>
-            <TextBlock x:Name="NoNotifications" Text="Yeni bildirim yok" Margin="4,6,0,8"
+            <TextBlock x:Name="NoNotifications" Text="{local:T 'Yeni bildirim yok'}" Margin="4,6,0,8"
                        Foreground="{DynamicResource PanelSubText}" Visibility="Collapsed" />
         </StackPanel>
     </Grid>

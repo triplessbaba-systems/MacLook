@@ -5,10 +5,11 @@ namespace MacLook;
 
 internal static class Ui
 {
+    /// <param name="header">Translated when the interface is in English (window titles and names just pass through).</param>
     /// <param name="gesture">Shortcut shown on the right, e.g. "⌃C".</param>
     public static MenuItem Item(string header, Action onClick, string? gesture = null)
     {
-        var item = new MenuItem { Header = header, InputGestureText = gesture ?? "" };
+        var item = new MenuItem { Header = L.T(header), InputGestureText = gesture ?? "" };
         item.Click += (_, _) => onClick();
         return item;
     }

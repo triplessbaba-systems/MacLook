@@ -61,6 +61,7 @@ internal static class Theme
         r["SliderFill"] = Brush("#FFFFFFFF");
         r["SliderIcon"] = Brush("#991D1D1F");
         r["Accent"] = Brush("#FF0A84FF");
+        r["SegmentOn"] = Brush(d ? "#FF636366" : "#FFFFFFFF");
         r["ScrollThumb"] = Brush(d ? "#4DFFFFFF" : "#40000000");
 
         // App switcher: tint over a blurred snapshot of the screen.

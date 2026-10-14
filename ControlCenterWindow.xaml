@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:MacLook"
-        Title="MacLook Denetim Merkezi"
+        Title="{local:T 'MacLook Denetim Merkezi'}"
         FontFamily="{StaticResource UiFont}" FontSize="13" Foreground="{DynamicResource PanelText}">
     <local:PanelWindow.Resources>
         <Style x:Key="ModuleTitle" TargetType="TextBlock">
@@ -55,15 +55,22 @@
 
             <Border x:Name="DisplayModule" Style="{StaticResource Tile}" Margin="0,10,0,0">
                 <StackPanel>
-                    <TextBlock Text="Ekran" Style="{StaticResource ModuleTitle}" />
+                    <TextBlock Text="{local:T 'Ekran'}" Style="{StaticResource ModuleTitle}" />
                     <ContentControl x:Name="DisplaySliderHost" />
                 </StackPanel>
             </Border>
 
             <Border Style="{StaticResource Tile}" Margin="0,10,0,0">
                 <StackPanel>
-                    <TextBlock Text="Ses" Style="{StaticResource ModuleTitle}" />
+                    <DockPanel>
+                        <!-- Opens the list of output devices, like the arrow next to Sound on macOS -->
+                        <Button x:Name="OutputsButton" DockPanel.Dock="Right" Style="{StaticResource PillButton}" Padding="6,1" Margin="0,-4,-4,4" ToolTip="{local:T 'Çıkış aygıtı'}">
+                            <TextBlock Text="&#xE70D;" FontFamily="{StaticResource IconFont}" FontSize="11" />
+                        </Button>
+                        <TextBlock Text="{local:T 'Ses'}" Style="{StaticResource ModuleTitle}" />
+                    </DockPanel>
                     <ContentControl x:Name="SoundSliderHost" />
+                    <TextBlock x:Name="OutputName" FontSize="11.5" Margin="2,6,0,0" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource PanelSubText}" />
                 </StackPanel>
             </Border>
 

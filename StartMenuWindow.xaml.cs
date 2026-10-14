@@ -18,11 +18,12 @@ public partial class StartMenuWindow : PanelWindow
     static readonly CultureInfo Turkish = new("tr-TR");
     static readonly CompareInfo Compare = Turkish.CompareInfo;
     // First run: the same apps the Windows Start menu had pinned, plus the usual ones.
+    // Built-in apps are listed by their Turkish and English names (whichever Windows uses).
     static readonly string[] DefaultPins =
     [
-        "Microsoft Edge", "Google Chrome", "Discord", "Steam", "Spotify", "Dosya Gezgini",
-        "Outlook", "Microsoft Store", "Ayarlar", "Fotoğraflar", "Solitaire & Casual Games", "Paint",
-        "LinkedIn", "Hesap Makinesi", "Saat", "Not Defteri", "Ekran Alıntısı Aracı", "Xbox",
+        "Microsoft Edge", "Google Chrome", "Discord", "Steam", "Spotify", "Dosya Gezgini", "File Explorer",
+        "Outlook", "Microsoft Store", "Ayarlar", "Settings", "Fotoğraflar", "Photos", "Solitaire & Casual Games", "Paint",
+        "LinkedIn", "Hesap Makinesi", "Calculator", "Saat", "Clock", "Not Defteri", "Notepad", "Ekran Alıntısı Aracı", "Snipping Tool", "Xbox",
     ];
 
     List<AppInfo> appResults = new();
@@ -61,8 +62,10 @@ public partial class StartMenuWindow : PanelWindow
         App.NotificationCenter.Dismiss();
         Prepare();
 
-        double screenH = SystemParameters.PrimaryScreenHeight;
-        ShowPanel(new Rect(8, screenH - DockWindow.BarHeight - 8 - PanelH, PanelW, PanelH), fromBottom: true);
+        // Bar style: bottom-left, next to the logo button. Dock style: centered above the Dock.
+        var screen = Screens.AtCursor().Bounds;
+        double left = App.Config.IsDock ? screen.Left + Math.Round((screen.Width - PanelW) / 2) : screen.Left + 8;
+        ShowPanel(new Rect(left, screen.Bottom - DockWindow.ReservedHeight - 8 - PanelH, PanelW, PanelH), fromBottom: true);
         Search.Focus();
         Keyboard.Focus(Search);
     }
@@ -138,7 +141,7 @@ public partial class StartMenuWindow : PanelWindow
 
     void ShowAllApps()
     {
-        ListTitle.Text = "Tüm Uygulamalar";
+        ListTitle.Text = L.T("Tüm Uygulamalar");
         BackButton.Visibility = Visibility.Visible;
         ListItems.Children.Clear();
         nav.Clear();
@@ -179,7 +182,7 @@ public partial class StartMenuWindow : PanelWindow
             .ToList();
         fileResults = recent.Where(f => Compare.IndexOf(f.Name, query, CompareOptions.IgnoreCase) >= 0).Take(5).ToList();
 
-        ListTitle.Text = appResults.Count + fileResults.Count > 0 ? "En iyi eşleşmeler" : "Sonuç bulunamadı";
+        ListTitle.Text = L.T(appResults.Count + fileResults.Count > 0 ? "En iyi eşleşmeler" : "Sonuç bulunamadı");
         BackButton.Visibility = Visibility.Collapsed;
         ListItems.Children.Clear();
         nav.Clear();
@@ -189,7 +192,7 @@ public partial class StartMenuWindow : PanelWindow
         {
             ListItems.Children.Add(SectionHeader("Uygulamalar"));
             foreach (var app in appResults)
-                ListItems.Children.Add(MakeRow(app.Icon, app.Name, "Uygulama", 30, () => Launch(app), () => AppMenu(app)));
+                ListItems.Children.Add(MakeRow(app.Icon, app.Name, L.T("Uygulama"), 30, () => Launch(app), () => AppMenu(app)));
         }
         if (fileResults.Count > 0)
         {
@@ -289,7 +292,7 @@ public partial class StartMenuWindow : PanelWindow
     void Confirm(string question, string args)
     {
         Dismiss();
-        if (MessageBox.Show(question, "MacLook", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+        if (MessageBox.Show(L.T(question), "MacLook", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
             Ui.Open("shutdown", args);
     }
 
@@ -343,7 +346,7 @@ public partial class StartMenuWindow : PanelWindow
 
     static TextBlock SectionHeader(string text)
     {
-        var header = new TextBlock { Text = text, FontSize = 12, FontWeight = FontWeights.SemiBold, Margin = new Thickness(13, 12, 0, 4) };
+        var header = new TextBlock { Text = L.T(text), FontSize = 12, FontWeight = FontWeights.SemiBold, Margin = new Thickness(13, 12, 0, 4) };
         header.SetResourceReference(TextBlock.ForegroundProperty, "PanelSubText");
         return header;
     }

@@ -91,8 +91,8 @@ public partial class SwitcherWindow : Window
     void ShowPanel()
     {
         if (!active) return;
-        double screenW = SystemParameters.PrimaryScreenWidth, screenH = SystemParameters.PrimaryScreenHeight;
-        double icon = Math.Clamp((screenW - 200) / apps.Count - 28, 36, 96);
+        var screen = Screens.AtCursor().Bounds;
+        double icon = Math.Clamp((screen.Width - 200) / apps.Count - 28, 36, 96);
         cell = icon + 28;
 
         Icons.Children.Clear();
@@ -118,13 +118,13 @@ public partial class SwitcherWindow : Window
         bool wasVisible = IsVisible;
         Width = panelW + 2 * Outer;
         Height = panelH + 2 * Outer;
-        Left = Math.Round((screenW - Width) / 2);
-        Top = Math.Round((screenH - Height) / 2);
+        Left = screen.Left + Math.Round((screen.Width - Width) / 2);
+        Top = screen.Top + Math.Round((screen.Height - Height) / 2);
 
         // Real frosted glass: blur a snapshot of what's behind the panel (nothing moves while Alt is held).
         if (!wasVisible)
         {
-            double scale = BitmapUtil.DpiScale(App.Dock);
+            double scale = Screens.Scale;
             var rect = new Int32Rect((int)((Left + Outer) * scale), (int)((Top + Outer) * scale), (int)(panelW * scale), (int)(panelH * scale));
             Panel.Background = new ImageBrush(BitmapUtil.BlurredScreen(rect)) { Stretch = Stretch.Fill };
         }

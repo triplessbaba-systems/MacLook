@@ -35,11 +35,44 @@ internal static class Snapshot
 
             Save(new SettingsWindow(), 520, null, Path.Combine(folder, "ayarlar.png"));
 
-            var bar = new DockWindow();
-            Save(bar, SystemParameters.PrimaryScreenWidth, bar.Height, Path.Combine(folder, "bar.png"), Wallpaper.Blurred);
+            var spotlight = new SpotlightWindow();
+            await spotlight.PrepareAsync("not");
+            Save(spotlight, 740, null, Path.Combine(folder, "spotlight.png"));
+            await spotlight.PrepareAsync("12*7+3");
+            Save(spotlight, 740, null, Path.Combine(folder, "spotlight-hesap.png"));
+
+            // Both bar styles. The setting is only switched in memory here, never saved.
+            var screen = Screens.Primary;
+
+            // Launchpad with a sample folder made of the first few apps (in memory only).
+            var sample = new LaunchpadFolder { Name = "Örnek Klasör", Apps = AppCatalog.Apps.Skip(2).Take(5).Select(a => a.Id).ToList() };
+            App.Config.LaunchpadFolders.Add(sample);
+            var launchpad = new LaunchpadWindow();
+            launchpad.PrepareSnapshot(screen);
+            Save(launchpad, screen.Bounds.Width, screen.Bounds.Height, Path.Combine(folder, "launchpad.png"));
+            App.Config.LaunchpadFolders.Remove(sample);
+
+            var style = App.Config.BarStyle;
+            foreach (var (name, value) in new[] { ("bar", "bar"), ("dock", "dock") })
+            {
+                App.Config.BarStyle = value;
+                var bar = new DockWindow(screen, primary: true);
+                Save(bar, screen.Bounds.Width, bar.Height, Path.Combine(folder, $"{name}.png"), StripAt(screen, bottom: true, bar.Height));
+                var menuBar = new MenuBarWindow(screen, primary: true);
+                Save(menuBar, screen.Bounds.Width, MenuBarWindow.BarHeight, Path.Combine(folder, $"menubar-{name}.png"), StripAt(screen, bottom: false, MenuBarWindow.BarHeight));
+            }
+            App.Config.BarStyle = style;
         }
         catch (Exception ex) { App.Log("snapshot failed: " + ex); }
         Application.Current.Shutdown();
+    }
+
+    /// <summary>The part of the (blurred) wallpaper that lies behind a strip at the top or bottom of a screen.</summary>
+    static BitmapSource StripAt(ScreenInfo screen, bool bottom, double height)
+    {
+        var wallpaper = Wallpaper.For(screen);
+        int h = (int)Math.Ceiling(height * wallpaper.PixelHeight / screen.Bounds.Height);
+        return new CroppedBitmap(wallpaper, new Int32Rect(0, bottom ? wallpaper.PixelHeight - h : 0, wallpaper.PixelWidth, h));
     }
 
     static void Save(Window window, double width, double? height, string path, BitmapSource? screenBackdrop = null)
@@ -55,8 +88,7 @@ internal static class Snapshot
         using (var dc = backdrop.RenderOpen())
         {
             if (screenBackdrop != null) // the matching strip of the wallpaper, as on screen
-                dc.DrawImage(new CroppedBitmap(screenBackdrop, new Int32Rect(0, screenBackdrop.PixelHeight - (int)(h * screenBackdrop.PixelHeight / SystemParameters.PrimaryScreenHeight),
-                    screenBackdrop.PixelWidth, (int)(h * screenBackdrop.PixelHeight / SystemParameters.PrimaryScreenHeight))), new Rect(0, 0, width, h));
+                dc.DrawImage(screenBackdrop, new Rect(0, 0, width, h));
             else
                 dc.DrawImage(Wallpaper.BlurredStrong, new Rect(0, 0, width, h)); // stand-in for what's behind the panel
         }

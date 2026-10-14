@@ -12,6 +12,6 @@ internal static class Glyphs
     // Segoe Fluent Icons
     public const string Wifi = "", Bluetooth = "", Ethernet = "", Volume = "", Mute = "";
     public const string Brightness = "", Moon = "", Cast = "", Settings = "", Accessibility = "";
-    public const string Share = "";
+    public const string Share = "", Apps = "", Search = "", Globe = "", Calculator = "", Document = "", Folder = "";
     public const string Power = "", Energy = "", Play = "", Pause = "", Previous = "", Next = "";
 }

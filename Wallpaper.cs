@@ -20,11 +20,16 @@ internal static class Wallpaper
 {
     const int Downscale = 4; // blur works on a quarter-size image; it's blurry anyway
 
-    /// <summary>Screen-sized (in DIPs) blur for the menu bar and Dock. Use screen coordinates as the brush Viewbox.</summary>
-    public static BitmapSource Blurred { get; private set; } = null!;
-    /// <summary>Heavier blur for Launchpad.</summary>
-    public static BitmapSource BlurredStrong { get; private set; } = null!;
+    /// <summary>Primary-screen blur (kept for callers that don't care about other monitors).</summary>
+    public static BitmapSource Blurred => For(Screens.Primary);
+    /// <summary>Heavier primary-screen blur.</summary>
+    public static BitmapSource BlurredStrong => For(Screens.Primary, strong: true);
     public static event Action? Changed;
+
+    static BitmapSource? source;
+    static Stretch stretch;
+    static Brush background = Brushes.Black;
+    static readonly Dictionary<string, BitmapSource> Cache = new();
 
     static FileSystemWatcher? engineWatcher;
     static DispatcherTimer? reloadDelay;
@@ -61,28 +66,37 @@ internal static class Wallpaper
         Changed?.Invoke();
     }
 
-    /// <summary>Brightness (0..1) of the wallpaper behind a screen rectangle in DIPs.</summary>
-    public static double Luminance(Rect screenRect)
+    /// <summary>
+    /// Blurred wallpaper sized for one screen. Its size in DIPs equals the screen's, so a brush can use
+    /// coordinates relative to the screen's top-left corner as its Viewbox.
+    /// </summary>
+    public static BitmapSource For(ScreenInfo screen, bool strong = false)
     {
-        double sx = Blurred.PixelWidth / SystemParameters.PrimaryScreenWidth;
-        double sy = Blurred.PixelHeight / SystemParameters.PrimaryScreenHeight;
-        return BitmapUtil.Luminance(Blurred, new Int32Rect(
-            (int)(screenRect.X * sx), (int)(screenRect.Y * sy),
-            (int)Math.Ceiling(screenRect.Width * sx), (int)Math.Ceiling(screenRect.Height * sy)));
+        double screenW = screen.Bounds.Width, screenH = screen.Bounds.Height;
+        var key = $"{screenW}x{screenH}|{strong}";
+        if (Cache.TryGetValue(key, out var cached)) return cached;
+        int w = (int)Math.Ceiling(screenW / Downscale), h = (int)Math.Ceiling(screenH / Downscale);
+        double dpiX = 96.0 * w / screenW, dpiY = 96.0 * h / screenH;
+        var blurred = BitmapUtil.Blur(source, w, h, strong ? 20 : 9, stretch, background);
+        return Cache[key] = BitmapUtil.Saturate(blurred, strong ? 1.3 : 1.5, dpiX, dpiY);
+    }
+
+    /// <summary>Brightness (0..1) of the wallpaper behind a rectangle given relative to the screen.</summary>
+    public static double Luminance(ScreenInfo screen, Rect relative)
+    {
+        var bitmap = For(screen);
+        double sx = bitmap.PixelWidth / screen.Bounds.Width, sy = bitmap.PixelHeight / screen.Bounds.Height;
+        return BitmapUtil.Luminance(bitmap, new Int32Rect(
+            (int)(relative.X * sx), (int)(relative.Y * sy),
+            (int)Math.Ceiling(relative.Width * sx), (int)Math.Ceiling(relative.Height * sy)));
     }
 
     static void Load()
     {
-        double screenW = SystemParameters.PrimaryScreenWidth, screenH = SystemParameters.PrimaryScreenHeight;
-        int w = (int)Math.Ceiling(screenW / Downscale), h = (int)Math.Ceiling(screenH / Downscale);
-        var source = LoadSource(w * 2);
-        var stretch = ReadStretch();
-        var background = new SolidColorBrush(ReadBackgroundColor());
-
-        // DPI is chosen so the bitmap measures exactly one screen in DIPs.
-        double dpiX = 96.0 * w / screenW, dpiY = 96.0 * h / screenH;
-        Blurred = BitmapUtil.Saturate(BitmapUtil.Blur(source, w, h, 9, stretch, background), 1.5, dpiX, dpiY);
-        BlurredStrong = BitmapUtil.Saturate(BitmapUtil.Blur(source, w, h, 20, stretch, background), 1.3, dpiX, dpiY);
+        Cache.Clear();
+        source = LoadSource((int)Math.Ceiling(Screens.All().Max(s => s.Bounds.Width) / Downscale * 2));
+        stretch = ReadStretch();
+        background = new SolidColorBrush(ReadBackgroundColor());
     }
 
     static BitmapSource? LoadSource(int decodeWidth)

@@ -11,14 +11,16 @@ namespace MacLook;
 public partial class NotificationCenterWindow : PanelWindow
 {
     const double PanelW = 360;
-    static readonly CultureInfo Turkish = new("tr-TR");
-    static readonly string[] WeekDayNames = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
+    // The calendar starts on Monday in both languages.
+    static string[] WeekDayNames => L.IsEnglish ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] : ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 
     readonly DispatcherTimer clockTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     DateTime shownMonth = DateTime.Today;
     bool opening;
     string shownIds = "";
     int ticks;
+    List<NotificationItem> shownItems = new();
+    readonly HashSet<string> expandedApps = new();
 
     public NotificationCenterWindow()
     {
@@ -43,13 +45,14 @@ public partial class NotificationCenterWindow : PanelWindow
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) Dismiss(); };
     }
 
-    public void Toggle()
+    /// <param name="fromTop">true: opens under the menu bar (clock up there, Dock style); false: above the bottom bar.</param>
+    public void Toggle(bool fromTop = false)
     {
         if (IsOpen) Dismiss();
-        else _ = OpenAsync();
+        else _ = OpenAsync(fromTop);
     }
 
-    async Task OpenAsync()
+    async Task OpenAsync(bool fromTop)
     {
         if (opening) return;
         opening = true;
@@ -58,8 +61,9 @@ public partial class NotificationCenterWindow : PanelWindow
             App.StartMenu.Dismiss();
             App.ControlCenter.Dismiss();
             double panelH = await PrepareAsync();
-            double screenW = SystemParameters.PrimaryScreenWidth, screenH = SystemParameters.PrimaryScreenHeight;
-            ShowPanel(new Rect(screenW - 8 - PanelW, screenH - DockWindow.BarHeight - 8 - panelH, PanelW, panelH), fromBottom: true);
+            var screen = Screens.AtCursor().Bounds;
+            double top = fromTop ? screen.Top + MenuBarWindow.BarHeight + 6 : screen.Bottom - DockWindow.ReservedHeight - 8 - panelH;
+            ShowPanel(new Rect(screen.Right - 8 - PanelW, top, PanelW, panelH), fromBottom: !fromTop);
             NotificationScroll.ScrollToTop();
             clockTimer.Start();
         }
@@ -76,7 +80,7 @@ public partial class NotificationCenterWindow : PanelWindow
         await BuildNotifications();
 
         // Measure everything except the list, then give the list an explicit height so it can scroll.
-        double available = SystemParameters.PrimaryScreenHeight - MenuBarWindow.BarHeight - DockWindow.BarHeight - 16;
+        double available = Screens.AtCursor().Bounds.Height - MenuBarWindow.BarHeight - DockWindow.ReservedHeight - 16;
         NotificationScroll.Height = 0;
         Body.Measure(new Size(336, double.PositiveInfinity));
         double fixedPart = Body.DesiredSize.Height + 24;
@@ -88,15 +92,15 @@ public partial class NotificationCenterWindow : PanelWindow
     void UpdateClock()
     {
         var now = DateTime.Now;
-        BigTime.Text = now.ToString("HH:mm", Turkish);
-        LongDate.Text = now.ToString("dddd, d MMMM yyyy", Turkish);
+        BigTime.Text = now.ToString("HH:mm", L.Culture);
+        LongDate.Text = now.ToString(L.IsEnglish ? "dddd, MMMM d, yyyy" : "dddd, d MMMM yyyy", L.Culture);
     }
 
     // ---------- calendar ----------
 
     void BuildCalendar()
     {
-        MonthTitle.Text = shownMonth.ToString("MMMM yyyy", Turkish);
+        MonthTitle.Text = shownMonth.ToString("MMMM yyyy", L.Culture);
         Days.Children.Clear();
         var first = new DateTime(shownMonth.Year, shownMonth.Month, 1);
         int offset = ((int)first.DayOfWeek + 6) % 7; // weeks start on Monday
@@ -137,23 +141,93 @@ public partial class NotificationCenterWindow : PanelWindow
 
     async Task BuildNotifications(List<NotificationItem>? items = null)
     {
-        NotificationList.Children.Clear();
         items ??= await Notifications.GetAsync();
         shownIds = items == null ? "" : Ids(items);
         if (items == null)
         {
-            NoNotifications.Text = "Bildirimlere erişilemiyor";
+            NotificationList.Children.Clear();
+            NoNotifications.Text = L.T("Bildirimlere erişilemiyor");
             NoNotifications.Visibility = Visibility.Visible;
             ClearAll.Visibility = Visibility.Collapsed;
             return;
         }
-        foreach (var item in items.Take(30)) NotificationList.Children.Add(MakeCard(item));
-        NoNotifications.Text = "Yeni bildirim yok";
-        NoNotifications.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        ClearAll.Visibility = items.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        shownItems = items.Take(40).ToList();
+        RenderNotifications();
     }
 
-    FrameworkElement MakeCard(NotificationItem item)
+    /// <summary>One stack per app, like macOS: the newest card on top, the rest behind it until the stack is opened.</summary>
+    void RenderNotifications()
+    {
+        NotificationList.Children.Clear();
+        foreach (var group in shownItems.GroupBy(i => i.AppName)) // keeps the newest-first order of first appearance
+        {
+            var list = group.ToList();
+            if (list.Count == 1)
+            {
+                NotificationList.Children.Add(MakeCard(list[0], null, () => Remove([list[0]])));
+            }
+            else if (expandedApps.Contains(group.Key))
+            {
+                NotificationList.Children.Add(StackHeader(group.Key, list));
+                foreach (var item in list) NotificationList.Children.Add(MakeCard(item, null, () => Remove([item])));
+            }
+            else
+            {
+                NotificationList.Children.Add(MakeStack(group.Key, list));
+            }
+        }
+        NoNotifications.Text = L.T("Yeni bildirim yok");
+        NoNotifications.Visibility = shownItems.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        ClearAll.Visibility = shownItems.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    void Remove(List<NotificationItem> items)
+    {
+        foreach (var item in items) Notifications.Remove(item.Id);
+        shownItems = shownItems.Except(items).ToList();
+        shownIds = Ids(shownItems);
+        RenderNotifications();
+    }
+
+    /// <summary>Collapsed stack: the newest card with the edges of the others showing below it.</summary>
+    FrameworkElement MakeStack(string app, List<NotificationItem> list)
+    {
+        void Expand() { expandedApps.Add(app); RenderNotifications(); }
+        var top = MakeCard(list[0], Expand, () => Remove(list), string.Format(L.T("+{0} bildirim daha"), list.Count - 1));
+        top.Margin = new Thickness(0);
+        var stack = new Grid { Margin = new Thickness(0, 0, 0, 14) };
+        for (int layer = Math.Min(2, list.Count - 1); layer >= 1; layer--)
+        {
+            var edge = new Border
+            {
+                Style = (Style)Application.Current.FindResource("Tile"),
+                Margin = new Thickness(layer * 8, 0, layer * 8, -layer * 6),
+                Opacity = 1 - layer * 0.25,
+            };
+            stack.Children.Add(edge);
+        }
+        stack.Children.Add(top);
+        return stack;
+    }
+
+    FrameworkElement StackHeader(string app, List<NotificationItem> list)
+    {
+        var title = new TextBlock { Text = app, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+        var collapse = new Button { Style = (Style)FindResource("PillButton"), Padding = new Thickness(8, 2, 8, 2), Content = new TextBlock { Text = "Daralt", FontSize = 12 } };
+        collapse.Click += (_, _) => { expandedApps.Remove(app); RenderNotifications(); };
+        var clear = new Button { Style = (Style)FindResource("PillButton"), Padding = new Thickness(8, 2, 8, 2), Content = new TextBlock { Text = "Temizle", FontSize = 12 } };
+        clear.Click += (_, _) => Remove(list);
+        var row = new DockPanel { Margin = new Thickness(4, 2, 0, 6) };
+        DockPanel.SetDock(clear, Dock.Right);
+        DockPanel.SetDock(collapse, Dock.Right);
+        row.Children.Add(clear);
+        row.Children.Add(collapse);
+        row.Children.Add(title);
+        return row;
+    }
+
+    /// <param name="onClick">null: open the app that sent it.</param>
+    FrameworkElement MakeCard(NotificationItem item, Action? onClick, Action onClose, string? footer = null)
     {
         var icon = new Image { Source = item.Icon, Width = 18, Height = 18, Margin = new Thickness(0, 0, 7, 0), VerticalAlignment = VerticalAlignment.Center };
         RenderOptions.SetBitmapScalingMode(icon, BitmapScalingMode.HighQuality);
@@ -182,6 +256,12 @@ public partial class NotificationCenterWindow : PanelWindow
         body.Children.Add(new TextBlock { Text = item.Title, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 6, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis });
         if (item.Body.Length > 0)
             body.Children.Add(new TextBlock { Text = item.Body, FontSize = 12.5, Margin = new Thickness(0, 2, 0, 0), TextWrapping = TextWrapping.Wrap, MaxHeight = 52, TextTrimming = TextTrimming.CharacterEllipsis });
+        if (footer != null)
+        {
+            var more = new TextBlock { Text = footer, FontSize = 11.5, Margin = new Thickness(0, 6, 0, 0) };
+            more.SetResourceReference(TextBlock.ForegroundProperty, "PanelSubText");
+            body.Children.Add(more);
+        }
 
         var card = new Border { Style = (Style)Application.Current.FindResource("Tile"), Padding = new Thickness(12, 10, 12, 10), Margin = new Thickness(0, 0, 0, 8), Child = body, Cursor = Cursors.Hand };
         card.MouseEnter += (_, _) => close.Visibility = Visibility.Visible;
@@ -189,17 +269,16 @@ public partial class NotificationCenterWindow : PanelWindow
         close.MouseLeftButtonUp += (_, e) =>
         {
             e.Handled = true;
-            Notifications.Remove(item.Id);
-            NotificationList.Children.Remove(card);
-            if (NotificationList.Children.Count == 0)
-            {
-                NoNotifications.Visibility = Visibility.Visible;
-                ClearAll.Visibility = Visibility.Collapsed;
-            }
+            onClose();
         };
         card.MouseLeftButtonUp += (_, e) =>
         {
             e.Handled = true;
+            if (onClick != null)
+            {
+                onClick();
+                return;
+            }
             Dismiss();
             if (item.AppId.Length > 0) Ui.Open(@"shell:AppsFolder\" + item.AppId);
         };

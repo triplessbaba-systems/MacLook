@@ -18,6 +18,7 @@ public partial class ControlCenterWindow : PanelWindow
     readonly DispatcherTimer mediaTimer = new() { Interval = TimeSpan.FromSeconds(2) };
     NowPlaying? nowPlaying;
     bool opening;
+    IntPtr monitor; // the screen whose brightness the slider controls
 
     public ControlCenterWindow()
     {
@@ -31,7 +32,12 @@ public partial class ControlCenterWindow : PanelWindow
             AudioVolume.Level = v;
             sound.Glyph = v <= 0.001 ? Glyphs.Mute : Glyphs.Volume;
         };
-        display.Committed += v => Task.Run(() => Brightness.Set((int)Math.Round(v * 100)));
+        display.Committed += v =>
+        {
+            var monitor = this.monitor;
+            Task.Run(() => Brightness.Set(monitor, (int)Math.Round(v * 100)));
+        };
+        OutputsButton.Click += (_, _) => ShowOutputs();
 
         BuildSmallTile(FocusTile, Glyphs.Moon, "Odak", "Bildirimler", wide: true, () => Open("ms-settings:notifications"));
         BuildSmallTile(NightTile, Glyphs.Brightness, "Gece Işığı", null, wide: false, () => Open("ms-settings:nightlight"));
@@ -66,9 +72,9 @@ public partial class ControlCenterWindow : PanelWindow
 
             Body.Measure(new Size(316, double.PositiveInfinity));
             double panelH = Body.DesiredSize.Height + 24;
-            double screenW = SystemParameters.PrimaryScreenWidth, screenH = SystemParameters.PrimaryScreenHeight;
-            double top = fromBar ? screenH - DockWindow.BarHeight - 8 - panelH : MenuBarWindow.BarHeight + 6;
-            ShowPanel(new Rect(screenW - 8 - PanelW, top, PanelW, panelH), fromBottom: fromBar);
+            var screen = Screens.AtCursor().Bounds;
+            double top = fromBar ? screen.Bottom - DockWindow.ReservedHeight - 8 - panelH : screen.Top + MenuBarWindow.BarHeight + 6;
+            ShowPanel(new Rect(screen.Right - 8 - PanelW, top, PanelW, panelH), fromBottom: fromBar);
             mediaTimer.Start();
         }
         catch (Exception ex) { App.Log("cc failed: " + ex); }
@@ -78,12 +84,15 @@ public partial class ControlCenterWindow : PanelWindow
     /// <summary>Reads current state into the modules (also used by --snapshot).</summary>
     internal async Task PrepareAsync()
     {
-        var brightness = Task.Run(Brightness.Get);
+        monitor = Screens.AtCursor().Handle;
+        var screenMonitor = monitor;
+        var brightness = Task.Run(() => Brightness.Get(screenMonitor));
         await BuildConnectivity();
         await RefreshMedia();
         var volume = AudioVolume.Level;
         sound.Value = volume ?? 0;
         sound.Glyph = (volume ?? 0) <= 0.001 ? Glyphs.Mute : Glyphs.Volume;
+        OutputName.Text = AudioVolume.Outputs().FirstOrDefault(o => o.IsDefault).Name ?? "";
         var level = await brightness;
         DisplayModule.Visibility = level == null ? Visibility.Collapsed : Visibility.Visible;
         display.Value = (level ?? 0) / 100.0;
@@ -93,6 +102,23 @@ public partial class ControlCenterWindow : PanelWindow
     {
         Dismiss();
         Ui.Open(uri);
+    }
+
+    /// <summary>Speakers, headphones…: pick where sound goes.</summary>
+    void ShowOutputs()
+    {
+        var menu = new ContextMenu { PlacementTarget = OutputsButton, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
+        foreach (var (id, name, isDefault) in AudioVolume.Outputs())
+            menu.Items.Add(Ui.Item((isDefault ? "✓  " : "     ") + name, () =>
+            {
+                AudioVolume.SetDefaultOutput(id);
+                OutputName.Text = name;
+                sound.Value = AudioVolume.Level ?? 0;
+            }));
+        if (menu.Items.Count == 0) menu.Items.Add(new MenuItem { Header = L.T("Çıkış aygıtı bulunamadı"), IsEnabled = false });
+        menu.Items.Add(new Separator());
+        menu.Items.Add(Ui.Item("Ses Ayarları…", () => Open("ms-settings:sound")));
+        OpenMenu(menu);
     }
 
     // ---------- connectivity ----------
@@ -137,8 +163,8 @@ public partial class ControlCenterWindow : PanelWindow
         circle.MouseLeftButtonUp += (_, e) => { e.Handled = true; toggle(); };
 
         var texts = new StackPanel { Margin = new Thickness(9, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Background = Brushes.Transparent, Cursor = Cursors.Hand };
-        texts.Children.Add(new TextBlock { Text = title, FontSize = 12.5, FontWeight = FontWeights.SemiBold });
-        var sub = new TextBlock { Text = status, FontSize = 11.5 };
+        texts.Children.Add(new TextBlock { Text = L.T(title), FontSize = 12.5, FontWeight = FontWeights.SemiBold });
+        var sub = new TextBlock { Text = L.T(status), FontSize = 11.5 };
         sub.SetResourceReference(TextBlock.ForegroundProperty, "PanelSubText");
         texts.Children.Add(sub);
         texts.MouseLeftButtonUp += (_, e) => { e.Handled = true; openSettings(); };
@@ -157,7 +183,7 @@ public partial class ControlCenterWindow : PanelWindow
         icon.SetResourceReference(TextBlock.FontFamilyProperty, "IconFont");
         var label = new TextBlock
         {
-            Text = title,
+            Text = L.T(title),
             FontSize = wide ? 12.5 : 11,
             FontWeight = wide ? FontWeights.SemiBold : FontWeights.Normal,
             TextAlignment = wide ? TextAlignment.Left : TextAlignment.Center,
@@ -171,7 +197,7 @@ public partial class ControlCenterWindow : PanelWindow
             texts.Children.Add(label);
             if (subtitle != null)
             {
-                var sub = new TextBlock { Text = subtitle, FontSize = 11.5 };
+                var sub = new TextBlock { Text = L.T(subtitle), FontSize = 11.5 };
                 sub.SetResourceReference(TextBlock.ForegroundProperty, "PanelSubText");
                 texts.Children.Add(sub);
             }

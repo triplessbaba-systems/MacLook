@@ -12,19 +12,58 @@ internal sealed class PinnedApp
     public string MatchExe { get; set; } = "";
 }
 
+/// <summary>A Launchpad folder: its name and the Apps-folder IDs of the apps inside.</summary>
+internal sealed class LaunchpadFolder
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString("N")[..8];
+    public string Name { get; set; } = L.T("Yeni Klasör");
+    public List<string> Apps { get; set; } = new();
+}
+
 internal sealed class Config
 {
     public static readonly string Dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "MacLook");
-    static readonly string FilePath = Path.Combine(Dir, "config.json");
+    internal static readonly string FilePath = Path.Combine(Dir, "config.json");
     static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     public List<PinnedApp> Pinned { get; set; } = new();
     /// <summary>Apps pinned in the Start menu (Apps folder IDs); null until first filled with defaults.</summary>
     public List<string>? StartPins { get; set; }
+    /// <summary>Launchpad order: app IDs and "folder:&lt;id&gt;"; null means alphabetical. New apps go at the end.</summary>
+    public List<string>? LaunchpadOrder { get; set; }
+    public List<LaunchpadFolder> LaunchpadFolders { get; set; } = new();
     /// <summary>Windows key opens MacLook's Start menu instead of Windows'.</summary>
     public bool WinKeyOpensStart { get; set; } = true;
     /// <summary>Alt+Tab shows the macOS-style app switcher.</summary>
     public bool MacAppSwitcher { get; set; } = true;
+    /// <summary>Alt+Space opens Spotlight.</summary>
+    public bool SpotlightHotkey { get; set; } = true;
+    /// <summary>"tr", "en", or null to follow the Windows display language.</summary>
+    public string? Language { get; set; }
+    /// <summary>Look for a newer release on GitHub once a day.</summary>
+    public bool CheckForUpdates { get; set; } = true;
+    public DateTime LastUpdateCheck { get; set; }
+    /// <summary>Win+Tab opens Mission Control instead of Windows' Task View.</summary>
+    public bool WinTabMissionControl { get; set; }
+
+    // Hot corners: an action id from HotCorners.Actions, "" for nothing.
+    public string HotCornerTopLeft { get; set; } = "missioncontrol";
+    public string HotCornerTopRight { get; set; } = "";
+    public string HotCornerBottomLeft { get; set; } = "";
+    public string HotCornerBottomRight { get; set; } = "";
+
+    /// <summary>"bar": full-width bar with tray and clock; "dock": floating macOS Dock (tray and clock go to the menu bar).</summary>
+    public string BarStyle { get; set; } = "bar";
+    /// <summary>Slide the bar / Dock away until the mouse touches the bottom edge.</summary>
+    public bool AutoHideBar { get; set; }
+    /// <summary>Icon size on the full-width bar.</summary>
+    public double BarIconSize { get; set; } = 30;
+    /// <summary>Icon size in the Dock.</summary>
+    public double DockIconSize { get; set; } = 48;
+    /// <summary>Dock icons grow under the mouse.</summary>
+    public bool DockMagnification { get; set; } = true;
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsDock => BarStyle == "dock";
 
     public static Config Load()
     {

@@ -25,7 +25,7 @@ internal sealed class PreviewWindow : Window
 
     public PreviewWindow()
     {
-        Title = "MacLook Önizleme";
+        Title = "MacLook Preview";
         WindowStyle = WindowStyle.None;
         ResizeMode = ResizeMode.NoResize;
         ShowInTaskbar = false;
@@ -52,18 +52,18 @@ internal sealed class PreviewWindow : Window
     }
 
     /// <param name="anchor">The bar icon, in screen DIPs.</param>
-    public void ShowFor(DockEntry entry, Rect anchor)
+    public void ShowFor(DockEntry entry, Rect anchor, ScreenInfo screen)
     {
         hideTimer.Stop();
         ClearThumbnails();
         Entry = entry;
-        var windows = entry.Windows.Take(5).ToList();
+        var windows = (entry.Windows.Count > 0 ? entry.Windows : entry.AllWindows).Take(5).ToList();
         cells.Children.Clear();
         foreach (var w in windows) cells.Children.Add(MakeCell(entry, w));
 
         Width = windows.Count * CellW + 2 * Pad;
         Height = 24 + ThumbH + 16 + 2 * Pad;
-        Left = Math.Clamp(anchor.X + anchor.Width / 2 - Width / 2, 4, SystemParameters.PrimaryScreenWidth - Width - 4);
+        Left = Math.Clamp(anchor.X + anchor.Width / 2 - Width / 2, screen.Bounds.Left + 4, Math.Max(screen.Bounds.Left + 4, screen.Bounds.Right - Width - 4));
         Top = anchor.Y - Height - 8;
         Show();
         UpdateLayout();
@@ -125,7 +125,7 @@ internal sealed class PreviewWindow : Window
 
     void AttachThumbnails(List<AppWindow> windows)
     {
-        double scale = BitmapUtil.DpiScale(this);
+        double scale = Screens.Scale;
         foreach (var cell in cells.Children.OfType<Border>())
         {
             var picture = (Border)((StackPanel)cell.Child).Children[1];

@@ -11,7 +11,7 @@ namespace MacLook;
 internal static class KeyboardHook
 {
     const int WH_KEYBOARD_LL = 13, WM_KEYDOWN = 0x100, WM_SYSKEYDOWN = 0x104, WM_QUIT = 0x12;
-    const byte VK_TAB = 0x09, VK_SHIFT = 0x10, VK_MENU = 0x12, VK_ESCAPE = 0x1B, VK_LEFT = 0x25, VK_RIGHT = 0x27;
+    const byte VK_SPACE = 0x20, VK_TAB = 0x09, VK_SHIFT = 0x10, VK_MENU = 0x12, VK_ESCAPE = 0x1B, VK_LEFT = 0x25, VK_RIGHT = 0x27;
     const byte VK_A = 0x41, VK_Q = 0x51, VK_LWIN = 0x5B, VK_RWIN = 0x5C, VK_LMENU = 0xA4, VK_RMENU = 0xA5;
     const byte VK_DUMMY = 0xE8; // unassigned key; makes Windows think the Win/Alt press was part of a shortcut
 
@@ -23,6 +23,7 @@ internal static class KeyboardHook
     // Read on every key so changes in MacLook Ayarları apply at once.
     static bool StartEnabled => config.WinKeyOpensStart;
     static bool SwitcherEnabled => config.MacAppSwitcher;
+    static bool SpotlightEnabled => config.SpotlightHotkey;
 
     // State, only touched on the hook thread.
     static bool winDown, winCombo, altDown, switching, switchCancelled;
@@ -101,6 +102,31 @@ internal static class KeyboardHook
                 Native.Key(VK_DUMMY, true);
                 Native.Key(VK_DUMMY, false);
                 ui.BeginInvoke(() => App.ControlCenter.Toggle(fromBar: true));
+            }
+            return true;
+        }
+
+        // ---- Win+Tab -> Mission Control (optional) ----
+        if (config.WinTabMissionControl && winDown && vk == VK_TAB)
+        {
+            if (down)
+            {
+                Native.Key(VK_DUMMY, true);
+                Native.Key(VK_DUMMY, false);
+                ui.BeginInvoke(() => App.MissionControl.Toggle());
+            }
+            return true;
+        }
+
+        // ---- Alt+Space -> Spotlight (Alt sits where Cmd is on a Mac keyboard) ----
+        if (vk == VK_SPACE && SpotlightEnabled && !switching && (Native.GetAsyncKeyState(VK_MENU) & 0x8000) != 0)
+        {
+            if (down)
+            {
+                // Space is swallowed; a dummy key stops the app in front from treating this as a lone Alt press.
+                Native.Key(VK_DUMMY, true);
+                Native.Key(VK_DUMMY, false);
+                ui.BeginInvoke(() => App.Spotlight.Toggle());
             }
             return true;
         }

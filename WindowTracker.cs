@@ -132,7 +132,7 @@ internal static class WindowTracker
     {
         if (NameCache.TryGetValue(exePath, out var cached)) return cached;
         string name;
-        if (Normalize(exePath) == "explorer.exe") name = "Dosya Gezgini";
+        if (Normalize(exePath) == "explorer.exe") name = L.T("Dosya Gezgini");
         else
         {
             try { name = FileVersionInfo.GetVersionInfo(exePath).FileDescription?.Trim() ?? ""; }

@@ -54,11 +54,11 @@ internal static class TrayHost
     }
 
     /// <summary>Tells apps where the tray is, so their popups open next to it.</summary>
-    public static void SetBarRect(RECT px)
+    public static void SetBarRect(RECT px, uint edge)
     {
         Area?.SetTrayHostSizeData(new TrayHostSizeData
         {
-            edge = NativeMethods.ABEdge.ABE_BOTTOM,
+            edge = edge == AppBar.Top ? NativeMethods.ABEdge.ABE_TOP : NativeMethods.ABEdge.ABE_BOTTOM,
             rc = new NativeMethods.Rect { Left = px.Left, Top = px.Top, Right = px.Right, Bottom = px.Bottom },
         });
     }

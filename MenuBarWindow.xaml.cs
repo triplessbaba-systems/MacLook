@@ -13,45 +13,58 @@ public partial class MenuBarWindow : Window
 {
     public const double BarHeight = 26;
     const byte CTRL = 0x11, SHIFT = 0x10, WIN = 0x5B;
-    static readonly CultureInfo Turkish = new("tr-TR");
+    
 
     readonly DispatcherTimer fastTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     readonly ImageBrush blurBrush = new() { ViewboxUnits = BrushMappingMode.Absolute, Stretch = Stretch.Fill };
+    readonly ScreenInfo screen;
     MenuItem appMenu = null!;
     IntPtr lastForeground, target;   // target: the app window the menus act on
     string targetKey = "";
 
-    public MenuBarWindow()
+    internal MenuBarWindow(ScreenInfo screen, bool primary)
     {
         InitializeComponent();
-        Left = 0;
-        Top = 0;
-        Width = SystemParameters.PrimaryScreenWidth;
+        this.screen = screen;
+        Left = screen.Bounds.X;
+        Top = screen.Bounds.Y;
+        Width = screen.Bounds.Width;
         Height = BarHeight;
 
         BgBlur.Background = blurBrush;
         ApplyWallpaper();
         Wallpaper.Changed += ApplyWallpaper;
         BuildMenus();
+        if (App.Config.IsDock) StatusHost.Content = new StatusArea(compact: true, showTray: primary);
 
         SourceInitialized += (_, _) =>
         {
             Native.MakeToolWindow(new WindowInteropHelper(this).Handle);
-            var bar = new AppBar(this, AppBar.Top, BarHeight);
+            var bar = new AppBar(this, AppBar.Top, BarHeight, screen);
             bar.FullscreenChanged += fullscreen => Topmost = !fullscreen;
             bar.Register();
+            if (primary && App.Config.IsDock)
+            {
+                var px = screen.BoundsPx;
+                TrayHost.SetBarRect(new RECT { Left = px.Left, Top = px.Top, Right = px.Right, Bottom = px.Top + (int)(BarHeight * Screens.Scale) }, AppBar.Top);
+            }
         };
 
         fastTimer.Tick += (_, _) => UpdateActiveApp();
         fastTimer.Start();
+        Closed += (_, _) =>
+        {
+            fastTimer.Stop();
+            Wallpaper.Changed -= ApplyWallpaper;
+        };
     }
 
     void ApplyWallpaper()
     {
-        blurBrush.ImageSource = Wallpaper.Blurred;
+        blurBrush.ImageSource = Wallpaper.For(screen);
         blurBrush.Viewbox = new Rect(0, 0, Width, BarHeight);
         // Like macOS: white text over dark wallpapers, dark text over light ones.
-        bool dark = Wallpaper.Luminance(new Rect(0, 0, Width, BarHeight)) < 0.55;
+        bool dark = Wallpaper.Luminance(screen, new Rect(0, 0, Width, BarHeight)) < 0.55;
         Resources["BarText"] = Theme.Brush(dark ? "#FFFFFFFF" : "#FF1D1D1F");
         Resources["BarHover"] = Theme.Brush(dark ? "#38FFFFFF" : "#1F000000");
         BgTint.Background = Theme.Brush(dark ? "#1F000000" : "#73FFFFFF");
@@ -79,6 +92,17 @@ public partial class MenuBarWindow : Window
         system.Items.Add(new Separator());
         system.Items.Add(Ui.Item("MacLook Ayarları…", () => App.Settings.Open()));
         system.Items.Add(Ui.Item("MacLook'tan Çık", () => App.Quit("menü")));
+
+        // A newer MacLook on GitHub shows up at the top of this menu.
+        MenuItem? updateItem = null;
+        system.SubmenuOpened += (_, _) =>
+        {
+            if (updateItem != null || Updater.Available is not { } update) return;
+            updateItem = Ui.Item(L.T("Güncelleme Var:") + $" MacLook {update.Version}", () => Ui.Open(update.Url));
+            updateItem.FontWeight = FontWeights.SemiBold;
+            system.Items.Insert(0, updateItem);
+            system.Items.Insert(1, new Separator());
+        };
 
         appMenu = TopMenu("Masaüstü");
         appMenu.FontWeight = FontWeights.Bold;
@@ -132,6 +156,9 @@ public partial class MenuBarWindow : Window
         {
             foreach (var w in TargetAppWindows().AsEnumerable().Reverse()) WindowTracker.Activate(w.Handle);
         }));
+        window.Items.Add(new Separator());
+        window.Items.Add(Ui.Item("Mission Control", () => App.MissionControl.Open()));
+        window.Items.Add(Ui.Item("Launchpad", () => App.Launchpad.Open()));
 
         var help = TopMenu("Yardım");
         help.Items.Add(Keys("Windows Yardımı", "F1", 0x70));
@@ -140,7 +167,7 @@ public partial class MenuBarWindow : Window
 
     MenuItem TopMenu(object header)
     {
-        var item = new MenuItem { Header = header };
+        var item = new MenuItem { Header = header is string text ? L.T(text) : header };
         AppMenu.Items.Add(item);
         return item;
     }
@@ -175,7 +202,9 @@ public partial class MenuBarWindow : Window
             Native.ShowWindow(w.Handle, Native.SW_MINIMIZE);
     }
 
-    internal static void ShowShortcuts() => MessageBox.Show(
+    internal static void ShowShortcuts() => MessageBox.Show(L.T(ShortcutHelp), L.T("MacLook Kısayolları"));
+
+    internal const string ShortcutHelp =
         "Windows tuşu / sol alttaki logo  →  Başlat menüsü\n" +
         "Win+A / ağ-ses ikonu  →  Denetim Merkezi\n" +
         "Saate tıkla  →  Bildirim Merkezi ve takvim\n" +
@@ -188,12 +217,13 @@ public partial class MenuBarWindow : Window
         "     ses ikonunun üstünde fare tekerleği: ses seviyesi\n" +
         "     ^: gizli tepsi simgeleri (barda hangileri dursun: Ayarlar → Görev çubuğu → Diğer sistem tepsisi simgeleri)\n\n" +
         "Menü çubuğu: Dosya, Düzen, Görünüm menüleri öndeki uygulamaya kısayolu gönderir\n" +
-        "Arama ikonu  →  Launchpad",
-        "MacLook Kısayolları");
+        "Arama ikonu / Alt+Boşluk  →  Spotlight\n" +
+        "Sol üst köşe / Pencere menüsü (Win+Tab: Ayarlar'dan)  →  Mission Control\n" +
+        "Launchpad: simgeyi sürükle → sırala,  başka bir simgenin üstüne bırak → klasör";
 
     static void ConfirmShutdown(string question, string args)
     {
-        if (MessageBox.Show(question, "MacLook", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+        if (MessageBox.Show(L.T(question), "MacLook", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
             Ui.Open("shutdown", args);
     }
 
@@ -211,7 +241,7 @@ public partial class MenuBarWindow : Window
         {
             target = fg;
             targetKey = "";
-            appMenu.Header = "Masaüstü";
+            appMenu.Header = L.T("Masaüstü");
             return;
         }
         if (WindowTracker.GetExePath(fg) is not string exe) return; // one of our own windows
@@ -221,5 +251,5 @@ public partial class MenuBarWindow : Window
     }
 
     void ControlCenter_Click(object sender, RoutedEventArgs e) => App.ControlCenter.Toggle(fromBar: false);
-    void Search_Click(object sender, RoutedEventArgs e) => App.Launchpad.Open();
+    void Search_Click(object sender, RoutedEventArgs e) => App.Spotlight.Toggle();
 }

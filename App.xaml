@@ -6,6 +6,27 @@
         <FontFamily x:Key="UiFont">Segoe UI Variable Text, Segoe UI</FontFamily>
         <FontFamily x:Key="IconFont">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
 
+        <!-- Bottom bar buttons: taller hover area than the menu bar's -->
+        <Style x:Key="BarItem" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource BarText}" />
+            <Setter Property="Padding" Value="8,0" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="7" Height="40" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BarHover}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Flat rounded button used inside panels (Start menu, Control Center) -->
         <Style x:Key="PillButton" TargetType="Button">
             <Setter Property="Foreground" Value="{DynamicResource PanelText}" />
